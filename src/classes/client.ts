@@ -1,5 +1,7 @@
 import { CHARGILY_LIVE_URL, CHARGILY_TEST_URL } from '../consts';
 import { ChargilyApiError, ChargilyNetworkError } from '../errors';
+import { ChargilyLogger, noopLogger } from '../logger';
+import { RateLimiter } from '../rate-limiter';
 import {
   Balance,
   Checkout,
@@ -43,6 +45,12 @@ export interface ChargilyClientOptions {
 
   /** Base delay in ms for exponential backoff (default: 1000). */
   retryDelay?: number;
+
+  /** Optional logger for debugging SDK requests. */
+  logger?: ChargilyLogger;
+
+  /** Maximum requests per second (default: 5). Set to 0 to disable rate limiting. */
+  maxRequestsPerSecond?: number;
 }
 
 export interface RequestOptions {
@@ -59,6 +67,8 @@ export class ChargilyClient {
   private timeout: number;
   private maxRetries: number;
   private retryDelay: number;
+  private logger: ChargilyLogger;
+  private rateLimiter: RateLimiter | null;
 
   constructor(options: ChargilyClientOptions) {
     if (!options.api_key) {
@@ -72,6 +82,9 @@ export class ChargilyClient {
     this.timeout = options.timeout ?? 30000;
     this.maxRetries = options.maxRetries ?? 2;
     this.retryDelay = options.retryDelay ?? 1000;
+    this.logger = options.logger ?? noopLogger;
+    const rps = options.maxRequestsPerSecond ?? 5;
+    this.rateLimiter = rps > 0 ? new RateLimiter(rps) : null;
   }
 
   /**
@@ -92,9 +105,19 @@ export class ChargilyClient {
     const url = `${this.base_url}/${endpoint}`;
     let lastError: Error | null = null;
 
+    this.logger.debug(`${method} ${endpoint}`, { body: body ? '(body)' : undefined });
+
+    if (this.rateLimiter) {
+      await this.rateLimiter.acquire();
+    }
+
     for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
       if (attempt > 0) {
         const delay = this.retryDelay * Math.pow(2, attempt - 1);
+        this.logger.warn(`Retry attempt ${attempt}/${this.maxRetries} after ${delay}ms`, {
+          endpoint,
+          method,
+        });
         await new Promise((resolve) => setTimeout(resolve, delay));
       }
 
@@ -133,6 +156,10 @@ export class ChargilyClient {
           }
 
           const errorBody = await response.json().catch(() => null);
+          this.logger.error(`API error ${response.status} on ${method} ${endpoint}`, {
+            status: response.status,
+            body: errorBody,
+          });
           throw new ChargilyApiError(response.status, response.statusText, errorBody);
         }
 
