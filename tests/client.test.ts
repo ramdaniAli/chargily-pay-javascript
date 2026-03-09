@@ -49,4 +49,50 @@ describe('ChargilyClient', () => {
       );
     });
   });
+
+  describe('createCheckout validation', () => {
+    it('should reject invalid URLs like httpmalicious', async () => {
+      await expect(
+        client.createCheckout({ success_url: 'httpmalicious', amount: 1000, currency: 'dzd' })
+      ).rejects.toThrow();
+    });
+
+    it('should reject non-URL strings', async () => {
+      await expect(
+        client.createCheckout({ success_url: 'not-a-url', amount: 1000, currency: 'dzd' })
+      ).rejects.toThrow();
+    });
+
+    it('should accept valid http URL', async () => {
+      await client.createCheckout({ success_url: 'http://example.com', amount: 1000, currency: 'dzd' });
+      expect(mockFetch).toHaveBeenCalled();
+    });
+
+    it('should accept valid https URL', async () => {
+      await client.createCheckout({ success_url: 'https://example.com', amount: 1000, currency: 'dzd' });
+      expect(mockFetch).toHaveBeenCalled();
+    });
+
+    it('should validate failure_url if provided', async () => {
+      await expect(
+        client.createCheckout({
+          success_url: 'https://example.com',
+          failure_url: 'not-a-url',
+          amount: 1000,
+          currency: 'dzd',
+        })
+      ).rejects.toThrow();
+    });
+
+    it('should validate webhook_endpoint if provided', async () => {
+      await expect(
+        client.createCheckout({
+          success_url: 'https://example.com',
+          webhook_endpoint: 'not-a-url',
+          amount: 1000,
+          currency: 'dzd',
+        })
+      ).rejects.toThrow();
+    });
+  });
 });

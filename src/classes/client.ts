@@ -291,11 +291,27 @@ export class ChargilyClient {
   public async createCheckout(
     checkout_data: CreateCheckoutParams
   ): Promise<Checkout> {
-    if (
-      !checkout_data.success_url.startsWith('http') &&
-      !checkout_data.success_url.startsWith('https')
-    ) {
-      throw new Error('Invalid success_url, it must begin with http or https.');
+    const validateUrl = (url: string, field: string): void => {
+      try {
+        const parsed = new URL(url);
+        if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+          throw new Error();
+        }
+      } catch {
+        throw new Error(
+          `Invalid ${field}: must be a valid URL starting with http:// or https://`
+        );
+      }
+    };
+
+    validateUrl(checkout_data.success_url, 'success_url');
+
+    if (checkout_data.failure_url) {
+      validateUrl(checkout_data.failure_url, 'failure_url');
+    }
+
+    if (checkout_data.webhook_endpoint) {
+      validateUrl(checkout_data.webhook_endpoint, 'webhook_endpoint');
     }
 
     if (
