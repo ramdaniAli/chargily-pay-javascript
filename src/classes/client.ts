@@ -3,8 +3,10 @@ import { ChargilyApiError, ChargilyNetworkError } from '../errors';
 import {
   Balance,
   Checkout,
+  CheckoutItem,
   Customer,
   PaymentLink,
+  PaymentLinkItem,
   Price,
   Product,
   ProductPrice,
@@ -361,14 +363,14 @@ export class ChargilyClient {
    * Retrieves all items included in a specific checkout session, with optional pagination.
    * @param {string} checkout_id - The ID of the checkout session.
    * @param {number} [per_page=10] - The number of items to return per page.
-   * @returns {Promise<ListResponse<CheckoutItemParams>>} A paginated list of items in the checkout session.
+   * @returns {Promise<ListResponse<CheckoutItem>>} A paginated list of items in the checkout session.
    */
   public async getCheckoutItems(
     checkout_id: string,
     per_page: number = 10
-  ): Promise<ListResponse<CheckoutItemParams>> {
+  ): Promise<ListResponse<CheckoutItem>> {
     const endpoint = `checkouts/${checkout_id}/items?per_page=${per_page}`;
-    const response: ListResponse<CheckoutItemParams> = await this.request(
+    const response: ListResponse<CheckoutItem> = await this.request(
       endpoint,
       'GET'
     );
@@ -441,14 +443,14 @@ export class ChargilyClient {
    * Retrieves all items associated with a specific payment link, with optional pagination.
    * @param {string} payment_link_id - The ID of the payment link whose items are to be retrieved.
    * @param {number} [per_page=10] - The number of items to return per page.
-   * @returns {Promise<ListResponse<PaymentLinkItemParams>>} A paginated list of items associated with the payment link.
+   * @returns {Promise<ListResponse<PaymentLinkItem>>} A paginated list of items associated with the payment link.
    */
   public async getPaymentLinkItems(
     payment_link_id: string,
     per_page: number = 10
-  ): Promise<ListResponse<PaymentLinkItemParams>> {
+  ): Promise<ListResponse<PaymentLinkItem>> {
     const endpoint = `payment-links/${payment_link_id}/items?per_page=${per_page}`;
-    const response: ListResponse<PaymentLinkItemParams> = await this.request(
+    const response: ListResponse<PaymentLinkItem> = await this.request(
       endpoint,
       'GET'
     );
