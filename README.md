@@ -300,6 +300,16 @@ The SDK logs:
 
 See the full Chargily Pay V2 API docs: [dev.chargily.com/pay-v2](https://dev.chargily.com/pay-v2/introduction)
 
+## Contributing
+
+We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions, coding standards, and workflow guidelines.
+
+Please read our [Code of Conduct](CODE_OF_CONDUCT.md) before participating.
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for a detailed history of all changes.
+
 ## License
 
 MIT
