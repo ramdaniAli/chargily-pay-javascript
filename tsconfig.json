@@ -1,12 +1,15 @@
 {
   "compilerOptions": {
-    "target": "es5",
+    "target": "es2018",
     "module": "commonjs",
     "outDir": "./lib",
     "rootDir": "./src",
     "strict": true,
     "esModuleInterop": true,
-    "declaration": true
+    "declaration": true,
+    "sourceMap": true,
+    "noUncheckedIndexedAccess": true
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*"],
+  "exclude": ["tests/**/*"]
 }

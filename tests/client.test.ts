@@ -65,12 +65,20 @@ describe('ChargilyClient', () => {
     });
 
     it('should accept valid http URL', async () => {
-      await client.createCheckout({ success_url: 'http://example.com', amount: 1000, currency: 'dzd' });
+      await client.createCheckout({
+        success_url: 'http://example.com',
+        amount: 1000,
+        currency: 'dzd',
+      });
       expect(mockFetch).toHaveBeenCalled();
     });
 
     it('should accept valid https URL', async () => {
-      await client.createCheckout({ success_url: 'https://example.com', amount: 1000, currency: 'dzd' });
+      await client.createCheckout({
+        success_url: 'https://example.com',
+        amount: 1000,
+        currency: 'dzd',
+      });
       expect(mockFetch).toHaveBeenCalled();
     });
 
@@ -174,21 +182,17 @@ describe('ChargilyClient', () => {
     });
 
     it('should throw if mode is invalid', () => {
-      expect(
-        () => new ChargilyClient({ api_key: 'key', mode: 'invalid' as any })
-      ).toThrow("mode must be 'test' or 'live'");
+      expect(() => new ChargilyClient({ api_key: 'key', mode: 'invalid' as any })).toThrow(
+        "mode must be 'test' or 'live'"
+      );
     });
 
     it('should accept valid test config', () => {
-      expect(
-        () => new ChargilyClient({ api_key: 'key', mode: 'test' })
-      ).not.toThrow();
+      expect(() => new ChargilyClient({ api_key: 'key', mode: 'test' })).not.toThrow();
     });
 
     it('should accept valid live config', () => {
-      expect(
-        () => new ChargilyClient({ api_key: 'key', mode: 'live' })
-      ).not.toThrow();
+      expect(() => new ChargilyClient({ api_key: 'key', mode: 'live' })).not.toThrow();
     });
   });
 
@@ -279,12 +283,10 @@ describe('ChargilyClient', () => {
         retryDelay: 1,
       });
 
-      mockFetch
-        .mockRejectedValueOnce(new Error('ECONNRESET'))
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () => Promise.resolve({ id: 'ok' }),
-        });
+      mockFetch.mockRejectedValueOnce(new Error('ECONNRESET')).mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ id: 'ok' }),
+      });
 
       const result = await clientNet.getBalance();
       expect(result).toEqual({ id: 'ok' });
@@ -308,10 +310,7 @@ describe('ChargilyClient', () => {
 
   describe('Idempotency key', () => {
     it('should send Idempotency-Key header when provided', async () => {
-      await client.createCustomer(
-        { name: 'Test' },
-        { idempotencyKey: 'unique-key-123' }
-      );
+      await client.createCustomer({ name: 'Test' }, { idempotencyKey: 'unique-key-123' });
 
       const callArgs = mockFetch.mock.calls[0];
       expect(callArgs[1].headers['Idempotency-Key']).toBe('unique-key-123');
@@ -369,10 +368,7 @@ describe('ChargilyClient', () => {
 
     it('should clamp page to minimum 1', async () => {
       await client.listCustomers({ page: -5 });
-      expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('page=1'),
-        expect.anything()
-      );
+      expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('page=1'), expect.anything());
     });
 
     it('listProducts should support pagination', async () => {

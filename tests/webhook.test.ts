@@ -1,9 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  isCheckoutPaid,
-  isCheckoutFailed,
-  WebhookEvent,
-} from '../src/types/webhook';
+import { isCheckoutPaid, isCheckoutFailed, WebhookEvent } from '../src/types/webhook';
 
 describe('Webhook event type guards', () => {
   const paidEvent: WebhookEvent = {

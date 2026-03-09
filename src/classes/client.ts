@@ -12,14 +12,12 @@ import {
   ProductPrice,
 } from '../types/data';
 import {
-  CheckoutItemParams,
   CreateCheckoutParams,
   CreateCustomerParams,
   CreatePaymentLinkParams,
   CreatePriceParams,
   CreateProductParams,
   PaginationParams,
-  PaymentLinkItemParams,
   UpdateCustomerParams,
   UpdatePaymentLinkParams,
   UpdatePriceParams,
@@ -70,8 +68,7 @@ export class ChargilyClient {
       throw new Error("mode must be 'test' or 'live'");
     }
     this.api_key = options.api_key;
-    this.base_url =
-      options.mode === 'test' ? CHARGILY_TEST_URL : CHARGILY_LIVE_URL;
+    this.base_url = options.mode === 'test' ? CHARGILY_TEST_URL : CHARGILY_LIVE_URL;
     this.timeout = options.timeout ?? 30000;
     this.maxRetries = options.maxRetries ?? 2;
     this.retryDelay = options.retryDelay ?? 1000;
@@ -225,9 +222,7 @@ export class ChargilyClient {
    * @param {number} [per_page=10] - The number of customers to return per page.
    * @returns {Promise<ListResponse<Customer>>} - A promise that resolves to a paginated list of customers.
    */
-  public async listCustomers(
-    options?: PaginationParams
-  ): Promise<ListResponse<Customer>> {
+  public async listCustomers(options?: PaginationParams): Promise<ListResponse<Customer>> {
     return this.request(`customers?${this.buildPaginationQuery(options)}`, 'GET');
   }
 
@@ -271,9 +266,7 @@ export class ChargilyClient {
    * @param {number} [per_page=10] - The number of products to return per page.
    * @returns {Promise<ListResponse<Product>>} A paginated list of products.
    */
-  public async listProducts(
-    options?: PaginationParams
-  ): Promise<ListResponse<Product>> {
+  public async listProducts(options?: PaginationParams): Promise<ListResponse<Product>> {
     return this.request(`products?${this.buildPaginationQuery(options)}`, 'GET');
   }
 
@@ -299,7 +292,10 @@ export class ChargilyClient {
     product_id: string,
     options?: PaginationParams
   ): Promise<ListResponse<ProductPrice>> {
-    return this.request(`products/${product_id}/prices?${this.buildPaginationQuery(options)}`, 'GET');
+    return this.request(
+      `products/${product_id}/prices?${this.buildPaginationQuery(options)}`,
+      'GET'
+    );
   }
 
   /**
@@ -362,9 +358,7 @@ export class ChargilyClient {
           throw new Error();
         }
       } catch {
-        throw new Error(
-          `Invalid ${field}: must be a valid URL starting with http:// or https://`
-        );
+        throw new Error(`Invalid ${field}: must be a valid URL starting with http:// or https://`);
       }
     };
 
@@ -378,13 +372,8 @@ export class ChargilyClient {
       validateUrl(checkout_data.webhook_endpoint, 'webhook_endpoint');
     }
 
-    if (
-      !checkout_data.items &&
-      (!checkout_data.amount || !checkout_data.currency)
-    ) {
-      throw new Error(
-        'The items field is required when amount and currency are not present.'
-      );
+    if (!checkout_data.items && (!checkout_data.amount || !checkout_data.currency)) {
+      throw new Error('The items field is required when amount and currency are not present.');
     }
 
     return this.request('checkouts', 'POST', checkout_data, options);
@@ -404,9 +393,7 @@ export class ChargilyClient {
    * @param {number} [per_page=10] - The number of checkout objects to return per page.
    * @returns {Promise<ListResponse<Checkout>>} A paginated list of checkout sessions.
    */
-  public async listCheckouts(
-    options?: PaginationParams
-  ): Promise<ListResponse<Checkout>> {
+  public async listCheckouts(options?: PaginationParams): Promise<ListResponse<Checkout>> {
     return this.request(`checkouts?${this.buildPaginationQuery(options)}`, 'GET');
   }
 
@@ -420,7 +407,10 @@ export class ChargilyClient {
     checkout_id: string,
     options?: PaginationParams
   ): Promise<ListResponse<CheckoutItem>> {
-    return this.request(`checkouts/${checkout_id}/items?${this.buildPaginationQuery(options)}`, 'GET');
+    return this.request(
+      `checkouts/${checkout_id}/items?${this.buildPaginationQuery(options)}`,
+      'GET'
+    );
   }
 
   /**
@@ -428,10 +418,7 @@ export class ChargilyClient {
    * @param {string} checkout_id - The ID of the checkout session to expire.
    * @returns {Promise<Checkout>} The expired checkout object, indicating the session is no longer valid for payment.
    */
-  public async expireCheckout(
-    checkout_id: string,
-    options?: RequestOptions
-  ): Promise<Checkout> {
+  public async expireCheckout(checkout_id: string, options?: RequestOptions): Promise<Checkout> {
     return this.request(`checkouts/${checkout_id}/expire`, 'POST', undefined, options);
   }
 
@@ -458,12 +445,7 @@ export class ChargilyClient {
     update_data: UpdatePaymentLinkParams,
     options?: RequestOptions
   ): Promise<PaymentLink> {
-    return this.request(
-      `payment-links/${payment_link_id}`,
-      'PATCH',
-      update_data,
-      options
-    );
+    return this.request(`payment-links/${payment_link_id}`, 'PATCH', update_data, options);
   }
 
   /**
@@ -480,9 +462,7 @@ export class ChargilyClient {
    * @param {number} [per_page=10] - The number of payment link objects to return per page.
    * @returns {Promise<ListResponse<PaymentLink>>} A paginated list of payment links.
    */
-  public async listPaymentLinks(
-    options?: PaginationParams
-  ): Promise<ListResponse<PaymentLink>> {
+  public async listPaymentLinks(options?: PaginationParams): Promise<ListResponse<PaymentLink>> {
     return this.request(`payment-links?${this.buildPaginationQuery(options)}`, 'GET');
   }
 
@@ -496,6 +476,9 @@ export class ChargilyClient {
     payment_link_id: string,
     options?: PaginationParams
   ): Promise<ListResponse<PaymentLinkItem>> {
-    return this.request(`payment-links/${payment_link_id}/items?${this.buildPaginationQuery(options)}`, 'GET');
+    return this.request(
+      `payment-links/${payment_link_id}/items?${this.buildPaginationQuery(options)}`,
+      'GET'
+    );
   }
 }
