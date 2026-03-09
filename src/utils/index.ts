@@ -30,9 +30,8 @@ export function verifySignature(
     signatureBuffer.length !== digest.length ||
     !crypto.timingSafeEqual(digest, signatureBuffer)
   ) {
-    throw new Error('The signature is invalid.');
+    return false;
   }
 
-  console.log('The signature is valid');
   return true;
 }
