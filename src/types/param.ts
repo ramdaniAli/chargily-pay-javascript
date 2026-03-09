@@ -1,5 +1,12 @@
 import { Address } from './data';
 
+export interface PaginationParams {
+  /** Number of items per page (1-50, default 10). */
+  per_page?: number;
+  /** Page number (default 1). */
+  page?: number;
+}
+
 export interface CreateCustomerParams {
   /** Required: The name of the customer. */
   name: string;

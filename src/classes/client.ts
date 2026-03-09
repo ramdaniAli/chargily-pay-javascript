@@ -18,6 +18,7 @@ import {
   CreatePaymentLinkParams,
   CreatePriceParams,
   CreateProductParams,
+  PaginationParams,
   PaymentLinkItemParams,
   UpdateCustomerParams,
   UpdatePaymentLinkParams,
@@ -58,6 +59,15 @@ export class ChargilyClient {
     this.api_key = options.api_key;
     this.base_url =
       options.mode === 'test' ? CHARGILY_TEST_URL : CHARGILY_LIVE_URL;
+  }
+
+  /**
+   * Builds a paginated query string from PaginationParams.
+   */
+  private buildPaginationQuery(options?: PaginationParams): string {
+    const per_page = Math.min(Math.max(options?.per_page ?? 10, 1), 50);
+    const page = Math.max(options?.page ?? 1, 1);
+    return `per_page=${per_page}&page=${page}`;
   }
 
   /**
@@ -166,14 +176,9 @@ export class ChargilyClient {
    * @returns {Promise<ListResponse<Customer>>} - A promise that resolves to a paginated list of customers.
    */
   public async listCustomers(
-    per_page: number = 10
+    options?: PaginationParams
   ): Promise<ListResponse<Customer>> {
-    const endpoint = `customers?per_page=${per_page}`;
-    const response: ListResponse<Customer> = await this.request(
-      endpoint,
-      'GET'
-    );
-    return response;
+    return this.request(`customers?${this.buildPaginationQuery(options)}`, 'GET');
   }
 
   /**
@@ -215,11 +220,9 @@ export class ChargilyClient {
    * @returns {Promise<ListResponse<Product>>} A paginated list of products.
    */
   public async listProducts(
-    per_page: number = 10
+    options?: PaginationParams
   ): Promise<ListResponse<Product>> {
-    const endpoint = `products?per_page=${per_page}`;
-    const response: ListResponse<Product> = await this.request(endpoint, 'GET');
-    return response;
+    return this.request(`products?${this.buildPaginationQuery(options)}`, 'GET');
   }
 
   /**
@@ -239,14 +242,9 @@ export class ChargilyClient {
    */
   public async getProductPrices(
     product_id: string,
-    per_page: number = 10
+    options?: PaginationParams
   ): Promise<ListResponse<ProductPrice>> {
-    const endpoint = `products/${product_id}/prices?per_page=${per_page}`;
-    const response: ListResponse<ProductPrice> = await this.request(
-      endpoint,
-      'GET'
-    );
-    return response;
+    return this.request(`products/${product_id}/prices?${this.buildPaginationQuery(options)}`, 'GET');
   }
 
   /**
@@ -285,10 +283,8 @@ export class ChargilyClient {
    * @param {number} [per_page=10] - The number of price objects to return per page.
    * @returns {Promise<ListResponse<Price>>} A paginated list of prices.
    */
-  public async listPrices(per_page: number = 10): Promise<ListResponse<Price>> {
-    const endpoint = `prices?per_page=${per_page}`;
-    const response: ListResponse<Price> = await this.request(endpoint, 'GET');
-    return response;
+  public async listPrices(options?: PaginationParams): Promise<ListResponse<Price>> {
+    return this.request(`prices?${this.buildPaginationQuery(options)}`, 'GET');
   }
 
   /**
@@ -349,14 +345,9 @@ export class ChargilyClient {
    * @returns {Promise<ListResponse<Checkout>>} A paginated list of checkout sessions.
    */
   public async listCheckouts(
-    per_page: number = 10
+    options?: PaginationParams
   ): Promise<ListResponse<Checkout>> {
-    const endpoint = `checkouts?per_page=${per_page}`;
-    const response: ListResponse<Checkout> = await this.request(
-      endpoint,
-      'GET'
-    );
-    return response;
+    return this.request(`checkouts?${this.buildPaginationQuery(options)}`, 'GET');
   }
 
   /**
@@ -367,14 +358,9 @@ export class ChargilyClient {
    */
   public async getCheckoutItems(
     checkout_id: string,
-    per_page: number = 10
+    options?: PaginationParams
   ): Promise<ListResponse<CheckoutItem>> {
-    const endpoint = `checkouts/${checkout_id}/items?per_page=${per_page}`;
-    const response: ListResponse<CheckoutItem> = await this.request(
-      endpoint,
-      'GET'
-    );
-    return response;
+    return this.request(`checkouts/${checkout_id}/items?${this.buildPaginationQuery(options)}`, 'GET');
   }
 
   /**
@@ -429,14 +415,9 @@ export class ChargilyClient {
    * @returns {Promise<ListResponse<PaymentLink>>} A paginated list of payment links.
    */
   public async listPaymentLinks(
-    per_page: number = 10
+    options?: PaginationParams
   ): Promise<ListResponse<PaymentLink>> {
-    const endpoint = `payment-links?per_page=${per_page}`;
-    const response: ListResponse<PaymentLink> = await this.request(
-      endpoint,
-      'GET'
-    );
-    return response;
+    return this.request(`payment-links?${this.buildPaginationQuery(options)}`, 'GET');
   }
 
   /**
@@ -447,13 +428,8 @@ export class ChargilyClient {
    */
   public async getPaymentLinkItems(
     payment_link_id: string,
-    per_page: number = 10
+    options?: PaginationParams
   ): Promise<ListResponse<PaymentLinkItem>> {
-    const endpoint = `payment-links/${payment_link_id}/items?per_page=${per_page}`;
-    const response: ListResponse<PaymentLinkItem> = await this.request(
-      endpoint,
-      'GET'
-    );
-    return response;
+    return this.request(`payment-links/${payment_link_id}/items?${this.buildPaginationQuery(options)}`, 'GET');
   }
 }

@@ -153,4 +153,62 @@ describe('ChargilyClient', () => {
       }
     });
   });
+
+  describe('Pagination', () => {
+    it('listCustomers should support page parameter', async () => {
+      await client.listCustomers({ per_page: 5, page: 3 });
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining('customers?per_page=5&page=3'),
+        expect.anything()
+      );
+    });
+
+    it('listCustomers should default to page 1, per_page 10', async () => {
+      await client.listCustomers();
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining('customers?per_page=10&page=1'),
+        expect.anything()
+      );
+    });
+
+    it('should clamp per_page to minimum 1', async () => {
+      await client.listCustomers({ per_page: 0 });
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining('per_page=1'),
+        expect.anything()
+      );
+    });
+
+    it('should clamp per_page to maximum 50', async () => {
+      await client.listCustomers({ per_page: 999 });
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining('per_page=50'),
+        expect.anything()
+      );
+    });
+
+    it('should clamp page to minimum 1', async () => {
+      await client.listCustomers({ page: -5 });
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining('page=1'),
+        expect.anything()
+      );
+    });
+
+    it('listProducts should support pagination', async () => {
+      await client.listProducts({ per_page: 20, page: 2 });
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining('products?per_page=20&page=2'),
+        expect.anything()
+      );
+    });
+
+    it('listPaymentLinks should support pagination', async () => {
+      await client.listPaymentLinks({ page: 4 });
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining('payment-links?per_page=10&page=4'),
+        expect.anything()
+      );
+    });
+  });
 });
