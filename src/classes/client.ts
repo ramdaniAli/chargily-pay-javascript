@@ -31,17 +31,25 @@ import { DeleteItemResponse, ListResponse } from '../types/response';
  * Configuration options for ChargilyClient.
  */
 export interface ChargilyClientOptions {
-  /**
-   * The API key for authentication with Chargily API.
-   * @type {string}
-   */
+  /** The API key for authentication with Chargily API. */
   api_key: string;
 
-  /**
-   * Operating mode of the client, indicating whether to use the test or live API endpoints.
-   * @type {'test' | 'live'}
-   */
+  /** Operating mode: 'test' or 'live'. */
   mode: 'test' | 'live';
+
+  /** Request timeout in milliseconds (default: 30000). */
+  timeout?: number;
+
+  /** Maximum number of retries on 429/5xx errors (default: 2). */
+  maxRetries?: number;
+
+  /** Base delay in ms for exponential backoff (default: 1000). */
+  retryDelay?: number;
+}
+
+export interface RequestOptions {
+  /** Idempotency key to prevent duplicate operations. */
+  idempotencyKey?: string;
 }
 
 /**
@@ -50,15 +58,23 @@ export interface ChargilyClientOptions {
 export class ChargilyClient {
   private api_key: string;
   private base_url: string;
+  private timeout: number;
+  private maxRetries: number;
+  private retryDelay: number;
 
-  /**
-   * Constructs a ChargilyClient instance.
-   * @param {ChargilyClientOptions} options - Configuration options including API key and mode.
-   */
   constructor(options: ChargilyClientOptions) {
+    if (!options.api_key) {
+      throw new Error('api_key is required');
+    }
+    if (options.mode !== 'test' && options.mode !== 'live') {
+      throw new Error("mode must be 'test' or 'live'");
+    }
     this.api_key = options.api_key;
     this.base_url =
       options.mode === 'test' ? CHARGILY_TEST_URL : CHARGILY_LIVE_URL;
+    this.timeout = options.timeout ?? 30000;
+    this.maxRetries = options.maxRetries ?? 2;
+    this.retryDelay = options.retryDelay ?? 1000;
   }
 
   /**
@@ -70,52 +86,83 @@ export class ChargilyClient {
     return `per_page=${per_page}&page=${page}`;
   }
 
-  /**
-   * Internal method to make requests to the Chargily API.
-   * @param {string} endpoint - The endpoint path to make the request to.
-   * @param {string} [method='GET'] - The HTTP method for the request.
-   * @param {Object} [body] - The request payload, necessary for POST or PATCH requests.
-   * @returns {Promise<any>} - The JSON response from the API.
-   * @private
-   */
   private async request(
     endpoint: string,
     method: string = 'GET',
-    body?: any
+    body?: any,
+    options?: RequestOptions
   ): Promise<any> {
     const url = `${this.base_url}/${endpoint}`;
-    const headers = {
-      Authorization: `Bearer ${this.api_key}`,
-      'Content-Type': 'application/json',
-    };
+    let lastError: Error | null = null;
 
-    const fetchOptions: RequestInit = {
-      method,
-      headers,
-    };
-
-    if (body !== undefined) {
-      fetchOptions.body = JSON.stringify(body);
-    }
-
-    try {
-      const response = await fetch(url, fetchOptions);
-
-      if (!response.ok) {
-        const errorBody = await response.json().catch(() => null);
-        throw new ChargilyApiError(response.status, response.statusText, errorBody);
+    for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
+      if (attempt > 0) {
+        const delay = this.retryDelay * Math.pow(2, attempt - 1);
+        await new Promise((resolve) => setTimeout(resolve, delay));
       }
 
-      return response.json();
-    } catch (error) {
-      if (error instanceof ChargilyApiError) {
-        throw error;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+
+      const headers: Record<string, string> = {
+        Authorization: `Bearer ${this.api_key}`,
+        'Content-Type': 'application/json',
+      };
+
+      if (options?.idempotencyKey) {
+        headers['Idempotency-Key'] = options.idempotencyKey;
       }
-      throw new ChargilyNetworkError(
-        error instanceof Error ? error.message : String(error),
-        error instanceof Error ? error : undefined
-      );
+
+      const fetchOptions: RequestInit = {
+        method,
+        headers,
+        signal: controller.signal,
+      };
+
+      if (body !== undefined) {
+        fetchOptions.body = JSON.stringify(body);
+      }
+
+      try {
+        const response = await fetch(url, fetchOptions);
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          const retryable = response.status === 429 || response.status >= 500;
+
+          if (retryable && attempt < this.maxRetries) {
+            lastError = new Error(`HTTP ${response.status}`);
+            continue;
+          }
+
+          const errorBody = await response.json().catch(() => null);
+          throw new ChargilyApiError(response.status, response.statusText, errorBody);
+        }
+
+        return response.json();
+      } catch (error) {
+        clearTimeout(timeoutId);
+
+        if (error instanceof ChargilyApiError) {
+          throw error;
+        }
+
+        if (attempt < this.maxRetries) {
+          lastError = error instanceof Error ? error : new Error(String(error));
+          continue;
+        }
+
+        throw new ChargilyNetworkError(
+          error instanceof Error ? error.message : String(error),
+          error instanceof Error ? error : undefined
+        );
+      }
     }
+
+    throw new ChargilyNetworkError(
+      lastError?.message ?? 'Max retries exceeded',
+      lastError instanceof Error ? lastError : undefined
+    );
   }
 
   /**
@@ -132,9 +179,10 @@ export class ChargilyClient {
    * @returns {Promise<Customer>} - A promise that resolves to the newly created customer.
    */
   public async createCustomer(
-    customer_data: CreateCustomerParams
+    customer_data: CreateCustomerParams,
+    options?: RequestOptions
   ): Promise<Customer> {
-    return this.request('customers', 'POST', customer_data);
+    return this.request('customers', 'POST', customer_data, options);
   }
 
   /**
@@ -154,9 +202,10 @@ export class ChargilyClient {
    */
   public async updateCustomer(
     customer_id: string,
-    update_data: UpdateCustomerParams
+    update_data: UpdateCustomerParams,
+    options?: RequestOptions
   ): Promise<Customer> {
-    return this.request(`customers/${customer_id}`, 'PATCH', update_data);
+    return this.request(`customers/${customer_id}`, 'PATCH', update_data, options);
   }
 
   /**
@@ -165,9 +214,10 @@ export class ChargilyClient {
    * @returns {Promise<DeleteItemResponse>} - A promise that resolves to the deletion response.
    */
   public async deleteCustomer(
-    customer_id: string
+    customer_id: string,
+    options?: RequestOptions
   ): Promise<DeleteItemResponse> {
-    return this.request(`customers/${customer_id}`, 'DELETE');
+    return this.request(`customers/${customer_id}`, 'DELETE', undefined, options);
   }
 
   /**
@@ -187,9 +237,10 @@ export class ChargilyClient {
    * @returns {Promise<Product>} The created product.
    */
   public async createProduct(
-    product_data: CreateProductParams
+    product_data: CreateProductParams,
+    options?: RequestOptions
   ): Promise<Product> {
-    return this.request('products', 'POST', product_data);
+    return this.request('products', 'POST', product_data, options);
   }
 
   /**
@@ -200,9 +251,10 @@ export class ChargilyClient {
    */
   public async updateProduct(
     product_id: string,
-    update_data: UpdateProductParams
+    update_data: UpdateProductParams,
+    options?: RequestOptions
   ): Promise<Product> {
-    return this.request(`products/${product_id}`, 'PATCH', update_data);
+    return this.request(`products/${product_id}`, 'PATCH', update_data, options);
   }
 
   /**
@@ -230,8 +282,11 @@ export class ChargilyClient {
    * @param {string} product_id - The ID of the product to delete.
    * @returns {Promise<DeleteItemResponse>} Confirmation of the product deletion.
    */
-  public async deleteProduct(product_id: string): Promise<DeleteItemResponse> {
-    return this.request(`products/${product_id}`, 'DELETE');
+  public async deleteProduct(
+    product_id: string,
+    options?: RequestOptions
+  ): Promise<DeleteItemResponse> {
+    return this.request(`products/${product_id}`, 'DELETE', undefined, options);
   }
 
   /**
@@ -252,8 +307,11 @@ export class ChargilyClient {
    * @param {CreatePriceParams} price_data - The details of the new price to be created.
    * @returns {Promise<Price>} The created price object.
    */
-  public async createPrice(price_data: CreatePriceParams): Promise<Price> {
-    return this.request('prices', 'POST', price_data);
+  public async createPrice(
+    price_data: CreatePriceParams,
+    options?: RequestOptions
+  ): Promise<Price> {
+    return this.request('prices', 'POST', price_data, options);
   }
 
   /**
@@ -264,9 +322,10 @@ export class ChargilyClient {
    */
   public async updatePrice(
     price_id: string,
-    update_data: UpdatePriceParams
+    update_data: UpdatePriceParams,
+    options?: RequestOptions
   ): Promise<Price> {
-    return this.request(`prices/${price_id}`, 'PATCH', update_data);
+    return this.request(`prices/${price_id}`, 'PATCH', update_data, options);
   }
 
   /**
@@ -293,7 +352,8 @@ export class ChargilyClient {
    * @returns {Promise<Checkout>} The created checkout object.
    */
   public async createCheckout(
-    checkout_data: CreateCheckoutParams
+    checkout_data: CreateCheckoutParams,
+    options?: RequestOptions
   ): Promise<Checkout> {
     const validateUrl = (url: string, field: string): void => {
       try {
@@ -327,7 +387,7 @@ export class ChargilyClient {
       );
     }
 
-    return this.request('checkouts', 'POST', checkout_data);
+    return this.request('checkouts', 'POST', checkout_data, options);
   }
 
   /**
@@ -368,8 +428,11 @@ export class ChargilyClient {
    * @param {string} checkout_id - The ID of the checkout session to expire.
    * @returns {Promise<Checkout>} The expired checkout object, indicating the session is no longer valid for payment.
    */
-  public async expireCheckout(checkout_id: string): Promise<Checkout> {
-    return this.request(`checkouts/${checkout_id}/expire`, 'POST');
+  public async expireCheckout(
+    checkout_id: string,
+    options?: RequestOptions
+  ): Promise<Checkout> {
+    return this.request(`checkouts/${checkout_id}/expire`, 'POST', undefined, options);
   }
 
   /**
@@ -378,9 +441,10 @@ export class ChargilyClient {
    * @returns {Promise<PaymentLink>} The created payment link object.
    */
   public async createPaymentLink(
-    payment_link_data: CreatePaymentLinkParams
+    payment_link_data: CreatePaymentLinkParams,
+    options?: RequestOptions
   ): Promise<PaymentLink> {
-    return this.request('payment-links', 'POST', payment_link_data);
+    return this.request('payment-links', 'POST', payment_link_data, options);
   }
 
   /**
@@ -391,12 +455,14 @@ export class ChargilyClient {
    */
   public async updatePaymentLink(
     payment_link_id: string,
-    update_data: UpdatePaymentLinkParams
+    update_data: UpdatePaymentLinkParams,
+    options?: RequestOptions
   ): Promise<PaymentLink> {
     return this.request(
       `payment-links/${payment_link_id}`,
       'PATCH',
-      update_data
+      update_data,
+      options
     );
   }
 

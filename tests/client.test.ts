@@ -123,6 +123,12 @@ describe('ChargilyClient', () => {
     });
 
     it('should throw ChargilyApiError even if error body is not JSON', async () => {
+      const noRetryClient = new ChargilyClient({
+        api_key: 'test_key',
+        mode: 'test',
+        maxRetries: 0,
+      });
+
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 500,
@@ -131,7 +137,7 @@ describe('ChargilyClient', () => {
       });
 
       try {
-        await client.getBalance();
+        await noRetryClient.getBalance();
         expect.unreachable('Should have thrown');
       } catch (error) {
         expect(error).toBeInstanceOf(ChargilyApiError);
@@ -142,15 +148,189 @@ describe('ChargilyClient', () => {
     });
 
     it('should throw ChargilyNetworkError on fetch failure', async () => {
+      const noRetryClient = new ChargilyClient({
+        api_key: 'test_key',
+        mode: 'test',
+        maxRetries: 0,
+      });
+
       mockFetch.mockRejectedValueOnce(new Error('Network timeout'));
 
       try {
-        await client.getBalance();
+        await noRetryClient.getBalance();
         expect.unreachable('Should have thrown');
       } catch (error) {
         expect(error).toBeInstanceOf(ChargilyNetworkError);
         expect((error as ChargilyNetworkError).message).toContain('Network timeout');
       }
+    });
+  });
+
+  describe('Constructor validation', () => {
+    it('should throw if api_key is empty', () => {
+      expect(() => new ChargilyClient({ api_key: '', mode: 'test' })).toThrow(
+        'api_key is required'
+      );
+    });
+
+    it('should throw if mode is invalid', () => {
+      expect(
+        () => new ChargilyClient({ api_key: 'key', mode: 'invalid' as any })
+      ).toThrow("mode must be 'test' or 'live'");
+    });
+
+    it('should accept valid test config', () => {
+      expect(
+        () => new ChargilyClient({ api_key: 'key', mode: 'test' })
+      ).not.toThrow();
+    });
+
+    it('should accept valid live config', () => {
+      expect(
+        () => new ChargilyClient({ api_key: 'key', mode: 'live' })
+      ).not.toThrow();
+    });
+  });
+
+  describe('Retry with exponential backoff', () => {
+    it('should retry on 429 and eventually succeed', async () => {
+      const client429 = new ChargilyClient({
+        api_key: 'test_key',
+        mode: 'test',
+        retryDelay: 1,
+      });
+
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 429,
+          statusText: 'Too Many Requests',
+          json: () => Promise.resolve(null),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ id: 'success' }),
+        });
+
+      const result = await client429.getBalance();
+      expect(result).toEqual({ id: 'success' });
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('should retry on 503 and eventually succeed', async () => {
+      const client503 = new ChargilyClient({
+        api_key: 'test_key',
+        mode: 'test',
+        retryDelay: 1,
+      });
+
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 503,
+          statusText: 'Service Unavailable',
+          json: () => Promise.resolve(null),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ id: 'recovered' }),
+        });
+
+      const result = await client503.getBalance();
+      expect(result).toEqual({ id: 'recovered' });
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('should NOT retry on 4xx (non-429)', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 422,
+        statusText: 'Unprocessable Entity',
+        json: () => Promise.resolve({ message: 'validation error' }),
+      });
+
+      await expect(client.getBalance()).rejects.toThrow(ChargilyApiError);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('should throw after maxRetries exhausted', async () => {
+      const clientRetry = new ChargilyClient({
+        api_key: 'test_key',
+        mode: 'test',
+        maxRetries: 2,
+        retryDelay: 1,
+      });
+
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 500,
+        statusText: 'Internal Server Error',
+        json: () => Promise.resolve(null),
+      });
+
+      await expect(clientRetry.getBalance()).rejects.toThrow(ChargilyApiError);
+      expect(mockFetch).toHaveBeenCalledTimes(3); // initial + 2 retries
+    });
+
+    it('should retry on network errors then succeed', async () => {
+      const clientNet = new ChargilyClient({
+        api_key: 'test_key',
+        mode: 'test',
+        retryDelay: 1,
+      });
+
+      mockFetch
+        .mockRejectedValueOnce(new Error('ECONNRESET'))
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ id: 'ok' }),
+        });
+
+      const result = await clientNet.getBalance();
+      expect(result).toEqual({ id: 'ok' });
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('should throw ChargilyNetworkError after network retries exhausted', async () => {
+      const clientNet = new ChargilyClient({
+        api_key: 'test_key',
+        mode: 'test',
+        maxRetries: 1,
+        retryDelay: 1,
+      });
+
+      mockFetch.mockRejectedValue(new Error('ECONNREFUSED'));
+
+      await expect(clientNet.getBalance()).rejects.toThrow(ChargilyNetworkError);
+      expect(mockFetch).toHaveBeenCalledTimes(2); // initial + 1 retry
+    });
+  });
+
+  describe('Idempotency key', () => {
+    it('should send Idempotency-Key header when provided', async () => {
+      await client.createCustomer(
+        { name: 'Test' },
+        { idempotencyKey: 'unique-key-123' }
+      );
+
+      const callArgs = mockFetch.mock.calls[0];
+      expect(callArgs[1].headers['Idempotency-Key']).toBe('unique-key-123');
+    });
+
+    it('should NOT send Idempotency-Key header when not provided', async () => {
+      await client.createCustomer({ name: 'Test' });
+
+      const callArgs = mockFetch.mock.calls[0];
+      expect(callArgs[1].headers['Idempotency-Key']).toBeUndefined();
+    });
+  });
+
+  describe('Timeout', () => {
+    it('should use AbortController signal in fetch', async () => {
+      await client.getBalance();
+
+      const callArgs = mockFetch.mock.calls[0];
+      expect(callArgs[1].signal).toBeInstanceOf(AbortSignal);
     });
   });
 
