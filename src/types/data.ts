@@ -146,6 +146,7 @@ export interface Price {
 
   /** The product ID associated with this price. */
   product_id: string;
+
   /** A set of key-value pairs that can be used to store additional information about the price. */
   metadata: Record<string, any>;
 
