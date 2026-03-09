@@ -16,14 +16,12 @@ export function verifySignature(
     return false;
   }
 
-  const sigPrefix = ''; // Define if there's a specific prefix used
-  const sigHashAlg = 'sha256'; // Define the hashing algorithm
   const computedSignature = crypto
-    .createHmac(sigHashAlg, secretKey)
+    .createHmac('sha256', secretKey)
     .update(payload)
     .digest('hex');
 
-  const digest = Buffer.from(sigPrefix + computedSignature, 'utf8');
+  const digest = Buffer.from(computedSignature, 'utf8');
   const signatureBuffer = Buffer.from(signature, 'utf8');
 
   if (
