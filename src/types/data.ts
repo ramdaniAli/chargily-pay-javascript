@@ -146,6 +146,7 @@ export interface Price {
 
   /** The product ID associated with this price. */
   product_id: string;
+
   /** A set of key-value pairs that can be used to store additional information about the price. */
   metadata: Record<string, any>;
 
@@ -185,17 +186,17 @@ export interface Checkout {
   /** The language of the checkout page. */
   locale: 'ar' | 'en' | 'fr';
 
-  /** A description of the transaction. */
-  description: string;
+  /** A description of the transaction. Can be null if not provided. */
+  description: string | null;
 
   /** The URL to which the customer will be redirected after a successful payment. */
   success_url: string;
 
-  /** The URL to which the customer will be redirected after a failed or canceled payment. */
-  failure_url: string;
+  /** The URL to which the customer will be redirected after a failed or canceled payment. Can be null if not provided. */
+  failure_url: string | null;
 
-  /** The webhook endpoint for receiving payment events. */
-  webhook_endpoint: string;
+  /** The webhook endpoint for receiving payment events. Can be null if not provided. */
+  webhook_endpoint: string | null;
 
   /** The payment method used, can be null if not specified. */
   payment_method: string | null;
@@ -218,8 +219,8 @@ export interface Checkout {
   /** Timestamp indicating when the checkout was last updated. */
   updated_at: number;
 
-  /** The shipping address for the checkout. */
-  shipping_address: Address;
+  /** The shipping address for the checkout. Can be null if not provided. */
+  shipping_address: Address | null;
 
   /** Indicates whether the shipping address should be collected. */
   collect_shipping_address: boolean;
@@ -269,9 +270,7 @@ export interface PaymentLink {
   /** True for Live Mode, False for Test Mode. */
   livemode: boolean;
 
-  /** The name or title of the payment
-
-link. */
+  /** The name or title of the payment link. */
   name: string;
 
   /** Indicates whether the payment link is active and can be used by customers. */

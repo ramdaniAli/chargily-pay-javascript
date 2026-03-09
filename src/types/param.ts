@@ -1,8 +1,15 @@
 import { Address } from './data';
 
+export interface PaginationParams {
+  /** Number of items per page (1-50, default 10). */
+  per_page?: number;
+  /** Page number (default 1). */
+  page?: number;
+}
+
 export interface CreateCustomerParams {
-  /** The name of the customer. */
-  name?: string;
+  /** Required: The name of the customer. */
+  name: string;
 
   /** The email address of the customer. */
   email?: string;
@@ -78,7 +85,7 @@ export interface CreatePriceParams {
 
 export interface UpdatePriceParams {
   /** A set of key-value pairs for additional information about the price. */
-  metadata: Record<string, any>;
+  metadata?: Record<string, any>;
 }
 
 export interface CheckoutItemParams {
@@ -124,13 +131,12 @@ export interface CreateCheckoutParams {
   customer_id?: string;
 
   /** Optional: The shipping address for the checkout. */
-  shipping_address?: string;
+  shipping_address?: Address;
 
   /** Optional: Indicates whether the shipping address should be collected. */
   collect_shipping_address?: boolean;
 
-  /** Optional
-: Additional information about the checkout. */
+  /** Optional: Additional information about the checkout. */
   metadata?: Record<string, any>;
 }
 

@@ -13,5 +13,11 @@ export * from './types/response';
 // Exporting the ChargilyClient class from classes/client.ts
 export * from './classes/client';
 
+// Exporting error classes
+export * from './errors';
+
+// Exporting webhook event types and type guards
+export * from './types/webhook';
+
 // Exporting all the utility functions from utils folder
 export * from './utils';
