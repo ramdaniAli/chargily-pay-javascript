@@ -189,7 +189,7 @@ export class ChargilyClient {
     product_id: string,
     update_data: UpdateProductParams
   ): Promise<Product> {
-    return this.request(`products/${product_id}`, 'POST', update_data);
+    return this.request(`products/${product_id}`, 'PATCH', update_data);
   }
 
   /**
@@ -260,7 +260,7 @@ export class ChargilyClient {
     price_id: string,
     update_data: UpdatePriceParams
   ): Promise<Price> {
-    return this.request(`prices/${price_id}`, 'POST', update_data);
+    return this.request(`prices/${price_id}`, 'PATCH', update_data);
   }
 
   /**
@@ -385,7 +385,7 @@ export class ChargilyClient {
   ): Promise<PaymentLink> {
     return this.request(
       `payment-links/${payment_link_id}`,
-      'POST',
+      'PATCH',
       update_data
     );
   }
