@@ -1,4 +1,5 @@
 import { CHARGILY_LIVE_URL, CHARGILY_TEST_URL } from '../consts';
+import { ChargilyApiError, ChargilyNetworkError } from '../errors';
 import {
   Balance,
   Checkout,
@@ -89,14 +90,19 @@ export class ChargilyClient {
       const response = await fetch(url, fetchOptions);
 
       if (!response.ok) {
-        throw new Error(
-          `API request failed with status ${response.status}: ${response.statusText}`
-        );
+        const errorBody = await response.json().catch(() => null);
+        throw new ChargilyApiError(response.status, response.statusText, errorBody);
       }
 
       return response.json();
     } catch (error) {
-      throw new Error(`Failed to make API request: ${error}`);
+      if (error instanceof ChargilyApiError) {
+        throw error;
+      }
+      throw new ChargilyNetworkError(
+        error instanceof Error ? error.message : String(error),
+        error instanceof Error ? error : undefined
+      );
     }
   }
 
